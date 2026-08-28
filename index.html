@@ -195,6 +195,9 @@ body {
                     <button onclick="openModal('modal-new-period')" title="Buat Periode Baru" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
                         <i data-lucide="calendar-plus" class="w-5 h-5"></i>
                     </button>
+                    <button onclick="openModal('modal-manage-categories')" title="Kelola Master Kategori Header" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
+                        <i data-lucide="folder-kanban" class="w-5 h-5"></i>
+                    </button>
                     <button onclick="openModal('modal-backup-settings')" title="Backup & Restore Data" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
                         <i data-lucide="database" class="w-5 h-5"></i>
                     </button>
@@ -418,10 +421,16 @@ body {
                         Bagi total pemasukan periode ini ke pos-pos deposit. Total alokasi tidak boleh melebihi total pemasukan.
                     </p>
                 </div>
-                <button onclick="openModal('modal-add-envelope')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    <span>Tambah Pos Baru</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="openModal('modal-manage-categories')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 border border-slate-200">
+                        <i data-lucide="folder-kanban" class="w-4 h-4 text-indigo-600"></i>
+                        <span>Master Kategori</span>
+                    </button>
+                    <button onclick="openModal('modal-add-envelope')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>+ Tambah Sub-Pos</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Allocation Calculator Status Box -->
@@ -753,18 +762,18 @@ body {
             <form id="form-add-envelope" onsubmit="handleEnvelopeSubmit(event)" class="mt-4 space-y-4">
                 <input type="hidden" id="envelope-edit-id" value="">
 
-                <!-- Kategori Induk (Parent Header) -->
+                <!-- Kategori Induk dari Master Data -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Kategori Induk (Header Grup) <span class="text-rose-500">*</span></label>
-                    <input type="text" list="kategori-induk-list" id="envelope-parent-category" required placeholder="Pilih atau ketik (contoh: Lifestyle, Kebutuhan Pokok, Tabungan)" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800">
-                    <datalist id="kategori-induk-list">
-                        <option value="Kebutuhan Pokok (Living)">
-                        <option value="Lifestyle & Hiburan">
-                        <option value="Tabungan & Investasi">
-                        <option value="Tagihan & Kewajiban">
-                        <option value="Sedekah & Sosial">
-                    </datalist>
-                    <p class="text-[10px] text-slate-400 mt-1">Anda bisa memilih kategori yang sudah ada atau mengetik nama kategori baru.</p>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Kategori Header (Master Data) <span class="text-rose-500">*</span></label>
+                        <button type="button" onclick="openModal('modal-manage-categories')" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i>
+                            <span>Buat Kategori Baru</span>
+                        </button>
+                    </div>
+                    <select id="envelope-parent-category" required class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800">
+                        <!-- Populated dynamically from Master Categories -->
+                    </select>
                 </div>
 
                 <!-- Nama Sub-Pos (Child Envelope) -->
@@ -1052,6 +1061,90 @@ body {
             <div class="pt-2 flex justify-end">
                 <button onclick="closeModal('modal-backup-settings')" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-4 py-2">
                     Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- 8. MODAL KELOLA MASTER DATA KATEGORI HEADER -->
+    <div id="modal-manage-categories" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden" style="display: none;">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl modal-content max-h-[90vh] overflow-y-auto relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="folder-kanban" class="w-4 h-4"></i>
+                    </div>
+                    <span>Master Data Kategori Header</span>
+                </h3>
+                <button onclick="closeModal('modal-manage-categories')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Form Tambah/Edit Master Kategori -->
+            <form id="form-master-category" onsubmit="handleMasterCategorySubmit(event)" class="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <input type="hidden" id="master-category-edit-id" value="">
+                
+                <div class="font-bold text-xs text-slate-800" id="form-master-cat-title">Tambah Kategori Header Baru:</div>
+                
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Nama Kategori Header <span class="text-rose-500">*</span></label>
+                    <input type="text" id="master-cat-name" required placeholder="Contoh: Lifestyle, Kebutuhan Pokok, Hobi, Utang" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Icon Header</label>
+                        <select id="master-cat-icon" class="w-full px-2.5 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none">
+                            <option value="sparkles">✨ Sparkles / Lifestyle</option>
+                            <option value="shopping-basket">🛒 Kebutuhan Pokok</option>
+                            <option value="piggy-bank">🐷 Tabungan / Investasi</option>
+                            <option value="zap">⚡ Listrik / Tagihan</option>
+                            <option value="heart">❤️ Sedekah / Sosial</option>
+                            <option value="car">🚗 Kendaraan / Bensin</option>
+                            <option value="home">🏠 Rumah & Tempat Tinggal</option>
+                            <option value="coffee">☕ Jajan & Nongkrong</option>
+                            <option value="film">🎬 Hiburan & Liburan</option>
+                            <option value="activity">💪 Kesehatan & Medis</option>
+                            <option value="book-open">📚 Pendidikan</option>
+                            <option value="folder-kanban" selected>📁 Folder Kategori</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Warna Header</label>
+                        <select id="master-cat-color" class="w-full px-2.5 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none">
+                            <option value="#4F46E5">🔵 Indigo</option>
+                            <option value="#10B981">🟢 Emerald Green</option>
+                            <option value="#8B5CF6">🟣 Purple</option>
+                            <option value="#F59E0B">🟡 Amber</option>
+                            <option value="#EC4899">🌸 Pink</option>
+                            <option value="#06B6D4">🌊 Cyan</option>
+                            <option value="#E11D48">🔴 Rose Red</option>
+                            <option value="#64748B">⚪ Slate</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button type="button" id="btn-cancel-edit-master-cat" onclick="resetMasterCategoryForm()" class="hidden px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700">Batal Edit</button>
+                    <button type="submit" id="btn-save-master-cat" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm">
+                        + Simpan Kategori
+                    </button>
+                </div>
+            </form>
+
+            <!-- Daftar Master Kategori yang Ada -->
+            <div class="mt-5">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daftar Kategori Header Aktif:</div>
+                <div id="master-categories-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-slate-100 flex justify-end">
+                <button onclick="closeModal('modal-manage-categories')" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl">
+                    Selesai
                 </button>
             </div>
         </div>
