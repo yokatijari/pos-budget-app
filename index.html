@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PosBudget — Envelope Budgeting & Pencatatan Keuangan</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#EEF2FF',
+                            100: '#E0E7FF',
+                            500: '#4F46E5',
+                            600: '#4338CA',
+                            700: '#3730A3',
+                            900: '#1E1B4B',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- App Logo & Brand -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                        <i data-lucide="layers" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight flex items-center gap-1.5">
+                            PosBudget
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Envelopes</span>
+                        </h1>
+                        <p class="text-xs text-slate-500 hidden sm:block">Alokasi Pos & Kontrol Pengeluaran</p>
+                    </div>
+                </div>
+
+                <!-- Desktop Navigation Tabs -->
+                <nav class="hidden md:flex items-center space-x-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
+                    <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="tab-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-2 bg-white text-indigo-600 shadow-sm">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('envelopes')" id="nav-btn-envelopes" class="tab-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-2 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="wallet-cards" class="w-4 h-4"></i>
+                        <span>Alokasi Pos</span>
+                    </button>
+                    <button onclick="switchTab('expenses')" id="nav-btn-expenses" class="tab-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-2 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                        <span>Pengeluaran</span>
+                    </button>
+                    <button onclick="switchTab('incomes')" id="nav-btn-incomes" class="tab-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-2 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
+                        <span>Pemasukan</span>
+                    </button>
+                    <button onclick="switchTab('history')" id="nav-btn-history" class="tab-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-2 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                        <span>Riwayat Periode</span>
+                    </button>
+                </nav>
+
+                <!-- Quick Action Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="openModal('modal-add-expense')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow transition-all flex items-center space-x-1.5 active:scale-95">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Catat Keluar</span>
+                    </button>
+                    <button onclick="openModal('modal-new-period')" title="Buat Periode Baru" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
+                        <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="openModal('modal-backup-settings')" title="Backup & Restore Data" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-12">
+        
+        <!-- ============================================== -->
+        <!-- BANNER PERIODE AKTIF & SIKLUS ANGGARAN -->
+        <!-- ============================================== -->
+        <section id="active-period-banner" class="mb-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-lg relative overflow-hidden">
+            <!-- Background Decorative Orbs -->
+            <div class="absolute -right-8 -top-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="absolute right-1/3 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2 mb-1.5">
+                        <span id="period-status-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            Periode Aktif
+                        </span>
+                        <span id="period-days-left" class="text-xs text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10">
+                            <i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>-- Hari Tersisa
+                        </span>
+                    </div>
+                    <h2 id="period-title" class="text-xl sm:text-2xl font-black text-white tracking-tight">Memuat Periode...</h2>
+                    <p id="period-dates" class="text-xs sm:text-sm text-slate-300 mt-1 flex items-center gap-1">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                        <span>-- s/d --</span>
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-700/60">
+                    <button onclick="openModal('modal-add-income')" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-white/20 transition-all flex items-center space-x-1.5">
+                        <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>+ Pemasukan</span>
+                    </button>
+                    <button onclick="openModal('modal-add-envelope')" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-white/20 transition-all flex items-center space-x-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5 text-indigo-300"></i>
+                        <span>+ Pos Deposit</span>
+                    </button>
+                    <button onclick="confirmClosePeriod()" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold px-3 py-2 rounded-xl border border-rose-500/30 transition-all flex items-center space-x-1.5">
+                        <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                        <span>Tutup Periode</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 1: DASHBOARD RINGKASAN -->
+        <!-- ============================================== -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            
+            <!-- Financial Overview Summary Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <!-- Total Pemasukan -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Total Pemasukan</span>
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <i data-lucide="wallet" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="stat-total-pemasukan" class="text-lg sm:text-2xl font-black text-slate-900">Rp 0</div>
+                    <div class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <span id="stat-incomes-count" class="font-medium text-emerald-600">0 sumber</span> tercatat
+                    </div>
+                </div>
+
+                <!-- Total Teralokasi -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Teralokasikan</span>
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <i data-lucide="layers" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="stat-total-alokasi" class="text-lg sm:text-2xl font-black text-indigo-600">Rp 0</div>
+                    <div class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <span id="stat-pos-count" class="font-medium text-slate-700">0 pos</span> aktif
+                    </div>
+                </div>
+
+                <!-- Belum Dialokasikan -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Belum Dialokasikan</span>
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="stat-belum-alokasi" class="text-lg sm:text-2xl font-black text-amber-600">Rp 0</div>
+                    <div class="text-xs text-slate-500 mt-1" id="stat-alokasi-status-text">
+                        Siap dialokasikan ke pos
+                    </div>
+                </div>
+
+                <!-- Total Pengeluaran -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Total Terpakai</span>
+                        <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                            <i data-lucide="trending-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div id="stat-total-pengeluaran" class="text-lg sm:text-2xl font-black text-rose-600">Rp 0</div>
+                    <div class="text-xs text-slate-500 mt-1 flex items-center justify-between">
+                        <span>Sisa Total:</span>
+                        <span id="stat-sisa-total" class="font-bold text-emerald-600">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Budget Progress Bar -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-600"></i>
+                            Realisasi Pengeluaran Keseluruhan
+                        </h3>
+                        <p class="text-xs text-slate-500">Perbandingan total pengeluaran terhadap total anggaran yang dialokasikan</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="overall-percentage" class="text-base sm:text-lg font-extrabold text-slate-900">0%</span>
+                        <span class="text-xs text-slate-500"> terpakai</span>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                    <div id="overall-progress-bar" class="progress-bar-fill h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-600" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Warning Notice if any pos is low -->
+            <div id="pos-warning-banner" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
+                <div class="p-2 rounded-xl bg-amber-100 text-amber-800 shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-amber-900">Perhatian: Sisa Saldo Pos Menipis / Kritis!</h4>
+                    <p id="pos-warning-message" class="text-xs text-amber-800 mt-0.5">Terdapat pos deposit yang memiliki sisa saldo di bawah 30%. Pantau pengeluaran Anda dengan hati-hati.</p>
+                </div>
+            </div>
+
+            <!-- Grid Daftar Pos Deposit (Envelopes) -->
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <i data-lucide="wallet-cards" class="w-5 h-5 text-indigo-600"></i>
+                            Daftar Pos Deposit (Envelopes)
+                        </h3>
+                        <p class="text-xs text-slate-500">Sisa saldo dan status pemakaian tiap pos deposit periode ini</p>
+                    </div>
+                    <button onclick="openModal('modal-add-envelope')" class="text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Tambah Pos</span>
+                    </button>
+                </div>
+
+                <div id="envelopes-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Cards rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Visual Charts & Recent Expenses Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Chart Section -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <h4 class="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                        <i data-lucide="donut" class="w-4 h-4 text-indigo-600"></i>
+                        Komposisi Alokasi Pos
+                    </h4>
+                    <p class="text-xs text-slate-500 mb-4">Distribusi pembagian dana periode aktif</p>
+                    <div class="relative h-56 flex items-center justify-center">
+                        <canvas id="envelopesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Expenses Ledger -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                <i data-lucide="receipt" class="w-4 h-4 text-indigo-600"></i>
+                                Pengeluaran Terbaru
+                            </h4>
+                            <p class="text-xs text-slate-500">Transaksi pengeluaran terakhir yang dicatat</p>
+                        </div>
+                        <button onclick="switchTab('expenses')" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline">
+                            Lihat Semua &rarr;
+                        </button>
+                    </div>
+
+                    <div id="recent-expenses-list" class="divide-y divide-slate-100">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: ALOKASI POS (ENVELOPES MANAGEMENT) -->
+        <!-- ============================================== -->
+        <section id="tab-envelopes" class="tab-content hidden space-y-6">
+            <!-- Header & Allocation Summary Banner -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <i data-lucide="wallet-cards" class="w-5 h-5 text-indigo-600"></i>
+                        Kelola Alokasi Pos Deposit
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Bagi total pemasukan periode ini ke pos-pos deposit. Total alokasi tidak boleh melebihi total pemasukan.
+                    </p>
+                </div>
+                <button onclick="openModal('modal-add-envelope')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Tambah Pos Baru</span>
+                </button>
+            </div>
+
+            <!-- Allocation Calculator Status Box -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-900 text-white p-4 rounded-2xl">
+                    <div class="text-xs text-slate-400 font-semibold uppercase">Total Pemasukan</div>
+                    <div id="alloc-banner-total-income" class="text-xl font-black mt-1">Rp 0</div>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl">
+                    <div class="text-xs text-indigo-700 font-semibold uppercase">Total Sudah Dialokasi</div>
+                    <div id="alloc-banner-total-allocated" class="text-xl font-black text-indigo-700 mt-1">Rp 0</div>
+                </div>
+                <div id="alloc-banner-unallocated-box" class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl">
+                    <div class="text-xs text-emerald-700 font-semibold uppercase">Sisa Belum Dialokasikan</div>
+                    <div id="alloc-banner-unallocated" class="text-xl font-black text-emerald-700 mt-1">Rp 0</div>
+                </div>
+            </div>
+
+            <!-- Envelopes Table / List -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <span class="font-bold text-sm text-slate-800">Daftar Pos Periode Aktif</span>
+                    <span class="text-xs text-slate-500 font-medium" id="envelopes-table-count">0 Pos</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Nama Pos</th>
+                                <th class="py-3 px-4">Nominal Alokasi</th>
+                                <th class="py-3 px-4">Terpakai</th>
+                                <th class="py-3 px-4">Sisa Saldo</th>
+                                <th class="py-3 px-4">Status & Bar</th>
+                                <th class="py-3 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="envelopes-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: PENGELUARAN (TRANSACTION LEDGER) -->
+        <!-- ============================================== -->
+        <section id="tab-expenses" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <i data-lucide="receipt" class="w-5 h-5 text-indigo-600"></i>
+                        Buku Catatan Pengeluaran
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Seluruh transaksi pengeluaran pada periode berjalan yang terhubung ke pos deposit.
+                    </p>
+                </div>
+                <button onclick="openModal('modal-add-expense')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Catat Pengeluaran Baru</span>
+                </button>
+            </div>
+
+            <!-- Filter & Search Controls -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-card flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div class="w-full sm:w-72 relative">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                    <input type="text" id="filter-expense-search" oninput="applyExpenseFilters()" placeholder="Cari keterangan pengeluaran..." class="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="w-full sm:w-auto flex items-center gap-2">
+                    <label class="text-xs text-slate-500 font-semibold shrink-0">Filter Pos:</label>
+                    <select id="filter-expense-pos" onchange="applyExpenseFilters()" class="text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Semua Pos</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Expenses Table -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Tanggal</th>
+                                <th class="py-3 px-4">Pos Deposit</th>
+                                <th class="py-3 px-4">Keterangan</th>
+                                <th class="py-3 px-4 text-right">Nominal</th>
+                                <th class="py-3 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-full-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="expenses-empty-state" class="hidden p-8 text-center text-slate-400">
+                    <i data-lucide="receipt-text" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                    <p class="text-sm font-medium">Belum ada pengeluaran tercatat sesuai filter.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: PEMASUKAN (INCOMES MANAGEMENT) -->
+        <!-- ============================================== -->
+        <section id="tab-incomes" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <i data-lucide="arrow-down-circle" class="w-5 h-5 text-emerald-600"></i>
+                        Sumber Pemasukan Periode Ini
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Catat gaji, pendapatan freelance, bonus, atau sumber dana lainnya untuk siklus periode aktif.
+                    </p>
+                </div>
+                <button onclick="openModal('modal-add-income')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>+ Catat Pemasukan</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <span class="font-bold text-sm text-slate-800">Daftar Pemasukan</span>
+                    <span id="incomes-table-total" class="text-sm font-extrabold text-emerald-600">Total: Rp 0</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Tanggal</th>
+                                <th class="py-3 px-4">Sumber Pemasukan</th>
+                                <th class="py-3 px-4">Catatan</th>
+                                <th class="py-3 px-4 text-right">Nominal</th>
+                                <th class="py-3 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incomes-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 5: RIWAYAT PERIODE (CYCLE ARCHIVES) -->
+        <!-- ============================================== -->
+        <section id="tab-history" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i>
+                        Riwayat & Arsip Periode Anggaran
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Lihat ringkasan dan detail riwayat pengeluaran dari siklus-siklus periode sebelumnya.
+                    </p>
+                </div>
+                <button onclick="openModal('modal-new-period')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                    <span>Buat Periode Baru</span>
+                </button>
+            </div>
+
+            <!-- List of Periods Cards -->
+            <div id="periods-history-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Rendered by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-2 flex items-center justify-around shadow-lg">
+        <button onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="mobile-nav-btn flex flex-col items-center justify-center text-indigo-600 py-1 px-2 rounded-xl transition-all">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold mt-0.5">Dashboard</span>
+        </button>
+        <button onclick="switchTab('envelopes')" id="mobile-nav-envelopes" class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 py-1 px-2 rounded-xl transition-all">
+            <i data-lucide="wallet-cards" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Pos Deposit</span>
+        </button>
+        <button onclick="openModal('modal-add-expense')" class="flex flex-col items-center justify-center -mt-6 bg-indigo-600 text-white w-12 h-12 rounded-full shadow-lg shadow-indigo-300 active:scale-95 transition-all">
+            <i data-lucide="plus" class="w-6 h-6"></i>
+        </button>
+        <button onclick="switchTab('expenses')" id="mobile-nav-expenses" class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 py-1 px-2 rounded-xl transition-all">
+            <i data-lucide="receipt" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Pengeluaran</span>
+        </button>
+        <button onclick="switchTab('history')" id="mobile-nav-history" class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 py-1 px-2 rounded-xl transition-all">
+            <i data-lucide="history" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Riwayat</span>
+        </button>
+    </nav>
+
+    <!-- ======================================================= -->
+    <!-- MODALS SECTION -->
+    <!-- ======================================================= -->
+
+    <!-- 1. MODAL TAMBAH PENGELUARAN (EXPENSE) -->
+    <div id="modal-add-expense" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                    </div>
+                    Catat Pengeluaran Nyata
+                </h3>
+                <button onclick="closeModal('modal-add-expense')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-add-expense" onsubmit="handleExpenseSubmit(event)" class="mt-4 space-y-4">
+                <!-- Pilih Pos Deposit -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Pos Deposit <span class="text-rose-500">*</span></label>
+                    <select id="expense-pos-id" onchange="updateSelectedPosInfo()" required class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+                        <option value="" disabled selected>-- Pilih Pos --</option>
+                    </select>
+                </div>
+
+                <!-- Info Sisa Saldo Pos Terpilih -->
+                <div id="expense-pos-balance-info" class="hidden p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] text-slate-500">Sisa Saldo Pos Terpilih:</div>
+                        <div id="expense-pos-current-balance" class="text-sm font-extrabold text-slate-800">Rp 0</div>
+                    </div>
+                    <div id="expense-pos-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        Aman
+                    </div>
+                </div>
+
+                <!-- Nominal Pengeluaran -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                        <input type="text" id="expense-nominal-input" inputmode="numeric" oninput="formatCurrencyInput(this); calculateExpenseLiveCheck();" required placeholder="0" class="w-full pl-10 pr-3 py-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div id="expense-live-preview" class="text-[11px] text-slate-500 mt-1"></div>
+                </div>
+
+                <!-- Keterangan -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Keterangan Transaksi <span class="text-rose-500">*</span></label>
+                    <input type="text" id="expense-keterangan" required placeholder="Contoh: Makan siang rendang & es teh" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Tanggal -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tanggal Transaksi <span class="text-rose-500">*</span></label>
+                    <input type="date" id="expense-date" required class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Action buttons -->
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-add-expense')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" id="btn-save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Simpan Transaksi</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. CUSTOM OVERSPENDING REJECTION MODAL (ALERT INFORMATIF) -->
+    <div id="modal-overspending-alert" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content border-2 border-rose-500 relative">
+            <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-black text-slate-900">Transaksi Ditolak!</h3>
+                <p class="text-xs text-rose-600 font-semibold mt-0.5">Pengeluaran Melebihi Sisa Saldo Pos Deposit</p>
+            </div>
+
+            <div class="my-4 bg-rose-50/70 border border-rose-200 rounded-2xl p-4 text-xs space-y-2">
+                <div class="flex justify-between items-center text-slate-600">
+                    <span>Pos Deposit:</span>
+                    <span id="alert-pos-name" class="font-bold text-slate-900">--</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                    <span>Sisa Saldo Pos:</span>
+                    <span id="alert-pos-balance" class="font-bold text-emerald-600">Rp 0</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                    <span>Nominal Dicoba:</span>
+                    <span id="alert-tried-amount" class="font-bold text-rose-600">Rp 0</span>
+                </div>
+                <div class="border-t border-rose-200 pt-2 flex justify-between items-center font-extrabold text-rose-700">
+                    <span>Kekurangan Saldo:</span>
+                    <span id="alert-deficit-amount">Rp 0</span>
+                </div>
+            </div>
+
+            <p class="text-[11px] text-slate-500 text-center leading-relaxed">
+                Prinsip <b>Envelope Budgeting</b> melarang overspending tanpa penyesuaian pos. Kurangi nominal pengeluaran atau tambah alokasi pos ini terlebih dahulu.
+            </p>
+
+            <div class="mt-5 flex gap-2">
+                <button onclick="closeModal('modal-overspending-alert')" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold transition-all">
+                    Saya Mengerti
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL TAMBAH / EDIT POS DEPOSIT (ENVELOPE) -->
+    <div id="modal-add-envelope" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 id="envelope-modal-title" class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                    <span>Tambah Pos Deposit Baru</span>
+                </h3>
+                <button onclick="closeModal('modal-add-envelope')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-add-envelope" onsubmit="handleEnvelopeSubmit(event)" class="mt-4 space-y-4">
+                <input type="hidden" id="envelope-edit-id" value="">
+
+                <!-- Nama Pos -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nama Pos Deposit <span class="text-rose-500">*</span></label>
+                    <input type="text" id="envelope-name" required placeholder="Contoh: Makan & Minum, Bensin, Tabungan" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Nominal Alokasi -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nominal Alokasi (Rp) <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                        <input type="text" id="envelope-nominal-input" inputmode="numeric" oninput="formatCurrencyInput(this); checkEnvelopeAllocationLimit();" required placeholder="0" class="w-full pl-10 pr-3 py-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div id="envelope-alloc-preview" class="text-[11px] text-slate-500 mt-1 flex justify-between">
+                        <span>Sisa pemasukan siap dialokasikan:</span>
+                        <span id="envelope-available-alloc" class="font-bold text-emerald-600">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Pilihan Icon & Warna -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Icon Pos</label>
+                        <select id="envelope-icon" class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="utensils">🍽️ Makan / Kuliner</option>
+                            <option value="car">🚗 Transport / Bensin</option>
+                            <option value="piggy-bank">🐷 Tabungan / Investasi</option>
+                            <option value="zap">⚡ Listrik / Tagihan</option>
+                            <option value="shopping-bag">🛍️ Belanja Kebutuhan</option>
+                            <option value="film">🎬 Hiburan / Healing</option>
+                            <option value="shield-alert">🛡️ Dana Darurat</option>
+                            <option value="heart">❤️ Sedekah / Donasi</option>
+                            <option value="coffee">☕ Kopi / Nongkrong</option>
+                            <option value="home">🏠 Tempat Tinggal</option>
+                            <option value="wallet" selected>💼 Dompet Umum</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Warna Badge</label>
+                        <select id="envelope-color" class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="#3B82F6">🔵 Biru Indigo</option>
+                            <option value="#10B981">🟢 Hijau Emerald</option>
+                            <option value="#8B5CF6">🟣 Ungu Purple</option>
+                            <option value="#F59E0B">🟡 Kuning Amber</option>
+                            <option value="#EC4899">🌸 Pink Rose</option>
+                            <option value="#06B6D4">🌊 Cyan Teal</option>
+                            <option value="#64748B">⚪ Slate Netral</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-add-envelope')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" id="btn-save-envelope" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Simpan Pos</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. MODAL TAMBAH PEMASUKAN (INCOME) -->
+    <div id="modal-add-income" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                    </div>
+                    Catat Pemasukan Periode Ini
+                </h3>
+                <button onclick="closeModal('modal-add-income')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-add-income" onsubmit="handleIncomeSubmit(event)" class="mt-4 space-y-4">
+                <!-- Sumber Pemasukan -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Sumber Pemasukan <span class="text-rose-500">*</span></label>
+                    <input type="text" id="income-source" required placeholder="Contoh: Gaji Pokok, Bonus, Freelance" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <!-- Nominal Pemasukan -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                        <input type="text" id="income-nominal-input" inputmode="numeric" oninput="formatCurrencyInput(this)" required placeholder="0" class="w-full pl-10 pr-3 py-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <!-- Tanggal -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tanggal Penerimaan <span class="text-rose-500">*</span></label>
+                    <input type="date" id="income-date" required class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <!-- Catatan opsional -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Tambahan (Opsional)</label>
+                    <input type="text" id="income-notes" placeholder="Contoh: Transfer rekening BCA" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-add-income')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Simpan Pemasukan</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. MODAL BUAT PERIODE BARU -->
+    <div id="modal-new-period" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                    </div>
+                    Mulai Siklus Periode Baru
+                </h3>
+                <button onclick="closeModal('modal-new-period')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-new-period" onsubmit="handleNewPeriodSubmit(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nama Periode <span class="text-rose-500">*</span></label>
+                    <input type="text" id="period-name-input" required placeholder="Contoh: Periode September 2026" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tanggal Mulai <span class="text-rose-500">*</span></label>
+                        <input type="date" id="period-start-date" required class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tanggal Selesai <span class="text-rose-500">*</span></label>
+                        <input type="date" id="period-end-date" required class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Salin Template Pos Checkbox -->
+                <div class="bg-indigo-50/60 border border-indigo-100 p-3 rounded-xl space-y-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="period-copy-pos-check" onchange="toggleCopyPosDropdown()" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        <span class="text-xs font-bold text-indigo-950">Salin Daftar Pos dari Periode Sebelumnya</span>
+                    </label>
+                    <div id="period-copy-pos-container" class="hidden">
+                        <select id="period-copy-pos-select" class="w-full text-xs bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 focus:outline-none">
+                            <!-- Populated by JS -->
+                        </select>
+                        <p class="text-[10px] text-indigo-600 mt-1">Daftar pos & nominal alokasi akan otomatis disalin ke periode baru.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Target (Opsional)</label>
+                    <input type="text" id="period-notes-input" placeholder="Contoh: Fokus nabung untuk liburan akhir tahun" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-new-period')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1.5">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>Buat Periode</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. MODAL DETAIL ARSIP PERIODE HISTORIS -->
+    <div id="modal-period-detail" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl modal-content max-h-[90vh] overflow-y-auto relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 id="archive-detail-title" class="font-black text-slate-900 text-lg">Detail Periode Arsip</h3>
+                    <p id="archive-detail-dates" class="text-xs text-slate-500">-- s/d --</p>
+                </div>
+                <button onclick="closeModal('modal-period-detail')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="my-4 space-y-4">
+                <!-- Summary Metrics -->
+                <div class="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl text-center">
+                    <div>
+                        <div class="text-[11px] text-slate-500">Pemasukan</div>
+                        <div id="archive-metric-income" class="text-sm sm:text-base font-extrabold text-emerald-600">Rp 0</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] text-slate-500">Pengeluaran</div>
+                        <div id="archive-metric-spent" class="text-sm sm:text-base font-extrabold text-rose-600">Rp 0</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] text-slate-500">Sisa Akhir</div>
+                        <div id="archive-metric-balance" class="text-sm sm:text-base font-extrabold text-indigo-600">Rp 0</div>
+                    </div>
+                </div>
+
+                <!-- Pos Breakdown -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Realisasi Pos Deposit</h4>
+                    <div id="archive-envelopes-list" class="space-y-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Expenses List -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Daftar Pengeluaran</h4>
+                    <div id="archive-expenses-list" class="divide-y divide-slate-100 max-h-56 overflow-y-auto border border-slate-100 rounded-xl p-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-between items-center border-t border-slate-100">
+                <button id="btn-activate-archive-period" onclick="activateArchivePeriod()" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-2 rounded-xl">
+                    Aktifkan Kembali Periode Ini
+                </button>
+                <button onclick="closeModal('modal-period-detail')" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. MODAL BACKUP & RESTORE DATA -->
+    <div id="modal-backup-settings" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl modal-content relative">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                    </div>
+                    Backup & Salin Data
+                </h3>
+                <button onclick="closeModal('modal-backup-settings')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="my-4 space-y-4 text-xs text-slate-600">
+                <p class="leading-relaxed">
+                    Unduh file cadangan (backup) data keuangan Anda untuk dipindahkan ke perangkat lain (misal dari Laptop ke HP) atau simpan sebagai arsip.
+                </p>
+
+                <!-- Export Button -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800">Export Backup (JSON)</div>
+                        <div class="text-[11px] text-slate-400">Unduh seluruh riwayat pos & transaksi</div>
+                    </div>
+                    <button onclick="exportDataBackup()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Unduh</span>
+                    </button>
+                </div>
+
+                <!-- Import File -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div>
+                        <div class="font-bold text-slate-800">Restore / Pulihkan Data</div>
+                        <div class="text-[11px] text-slate-400">Pilih file backup (.json) untuk memulihkan data</div>
+                    </div>
+                    <input type="file" id="import-file-input" accept=".json" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <button onclick="importDataBackup()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 mt-2">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                        <span>Terapkan File Backup</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeModal('modal-backup-settings')" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-4 py-2">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-20 md:bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- Application JavaScript Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>

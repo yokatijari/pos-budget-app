@@ -1,0 +1,3 @@
+# PosBudget - Requirements
+# Aplikasi ini mandiri menggunakan Python Standard Library.
+# File ini diperlukan oleh penyedia layanan cloud (Render, Railway, Heroku) untuk deteksi bahasa Python.

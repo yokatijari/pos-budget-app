@@ -1,0 +1,110 @@
+/* style.css - Custom styling for Envelope Budgeting Web App */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --color-hijau-bg: #ECFDF5;
+    --color-hijau-text: #047857;
+    --color-hijau-bar: #10B981;
+    --color-kuning-bg: #FFFBEB;
+    --color-kuning-text: #B45309;
+    --color-kuning-bar: #F59E0B;
+    --color-merah-bg: #FEF2F2;
+    --color-merah-text: #B91C1C;
+    --color-merah-bar: #EF4444;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* Glassmorphism & Card Shadows */
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.shadow-card {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-card-hover {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.shadow-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Status Badges */
+.badge-status-hijau {
+    background-color: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+.badge-status-kuning {
+    background-color: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+.badge-status-merah {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+/* Progress bar transitions */
+.progress-bar-fill {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Modal Animations */
+.modal-backdrop {
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    transition: opacity 0.25s ease-out;
+}
+
+.modal-content {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out;
+}
+
+.modal-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.modal-hidden .modal-content {
+    transform: scale(0.95) translateY(10px);
+}
+
+/* Floating Action Button Pulse */
+@keyframes fab-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+}
+
+.animate-pulse-gentle {
+    animation: fab-pulse 3s infinite ease-in-out;
+}
+
+/* Mobile bottom nav safe spacing */
+.pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+}
