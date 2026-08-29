@@ -766,7 +766,7 @@ body {
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Kategori Header (Master Data) <span class="text-rose-500">*</span></label>
-                        <button type="button" onclick="openModal('modal-manage-categories')" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1">
+                        <button type="button" onclick="openCategoryManagerFromEnvelope()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1">
                             <i data-lucide="plus" class="w-3 h-3"></i>
                             <span>Buat Kategori Baru</span>
                         </button>
@@ -1253,7 +1253,8 @@ const LocalDB = {
         PERIODS: 'pos_periods',
         INCOMES: 'pos_incomes',
         ENVELOPES: 'pos_envelopes',
-        EXPENSES: 'pos_expenses'
+        EXPENSES: 'pos_expenses',
+        CATEGORIES: 'pos_categories'
     },
 
     get(key) {
@@ -1315,6 +1316,8 @@ const LocalDB = {
             ];
             this.set(this.KEYS.EXPENSES, sampleExpenses);
         }
+        // Kategori Header sengaja TIDAK diisi contoh statis — murni dibuat manual
+        // oleh user lewat modal "Kelola Master Kategori Header" (dinamis, dari nol).
     },
 
     getStatusColor(sisa, alokasi) {
@@ -1472,6 +1475,19 @@ function importDataBackup() {
 // MODAL MANAGEMENT
 // ==========================================
 
+// Pembungkus aman untuk lucide.createIcons() — jika library lucide belum/gagal
+// dimuat (mis. CDN lambat atau diblokir), pemanggilan ini TIDAK BOLEH melempar
+// error yang menghentikan alur kode (seperti membuka modal).
+function safeCreateIcons() {
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    } catch (err) {
+        console.warn('lucide.createIcons() gagal dijalankan:', err);
+    }
+}
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -1481,7 +1497,13 @@ function openModal(modalId) {
         m.classList.add('modal-hidden');
         m.style.display = 'none';
     });
-    
+
+    // Tampilkan modal SEBELUM menjalankan setup per-modal, supaya kalau ada error
+    // di kode setup (misalnya ikon gagal render), modal tetap terlihat dan tidak
+    // membuat user "terlempar" balik ke dashboard.
+    modal.classList.remove('modal-hidden');
+    modal.style.display = 'flex';
+
     if (modalId === 'modal-add-expense') {
         document.getElementById('expense-date').value = getTodayString();
         populateExpensePosDropdown();
@@ -1499,7 +1521,11 @@ function openModal(modalId) {
         document.getElementById('envelope-name').value = '';
         document.getElementById('envelope-nominal-input').value = '';
         document.getElementById('envelope-modal-title').querySelector('span').innerText = 'Tambah Pos Deposit Baru';
+        populateEnvelopeParentCategoryDropdown();
         updateEnvelopeAllocPreview();
+    } else if (modalId === 'modal-manage-categories') {
+        resetMasterCategoryForm();
+        renderMasterCategoriesList();
     } else if (modalId === 'modal-new-period') {
         const today = new Date();
         const startStr = getTodayString();
@@ -1510,9 +1536,7 @@ function openModal(modalId) {
         populateCopyPosDropdown();
     }
 
-    modal.classList.remove('modal-hidden');
-    modal.style.display = 'flex';
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 function closeModal(modalId) {
@@ -1520,6 +1544,38 @@ function closeModal(modalId) {
     if (!modal) return;
     modal.classList.add('modal-hidden');
     modal.style.display = 'none';
+
+    // Jika modal kategori ditutup dan sebelumnya dibuka dari tengah-tengah form Tambah/Edit Pos Deposit,
+    // kembalikan user ke form tersebut lengkap dengan data yang sudah diisi + dropdown kategori terbaru.
+    if (modalId === 'modal-manage-categories' && state.envelopeFormDraft) {
+        const draft = state.envelopeFormDraft;
+        state.envelopeFormDraft = null;
+
+        openModal('modal-add-envelope');
+        document.getElementById('envelope-edit-id').value = draft.editId;
+        document.getElementById('envelope-name').value = draft.name;
+        document.getElementById('envelope-nominal-input').value = draft.nominal;
+        document.getElementById('envelope-icon').value = draft.icon;
+        document.getElementById('envelope-color').value = draft.color;
+        document.getElementById('envelope-modal-title').querySelector('span').innerText = draft.title;
+        populateEnvelopeParentCategoryDropdown(draft.categoryId || null);
+        checkEnvelopeAllocationLimit();
+    }
+}
+
+// Dipanggil saat user klik "+ Buat Kategori Baru" di tengah form Tambah/Edit Pos Deposit.
+// Menyimpan draft isian form supaya tidak hilang saat modal kategori dibuka.
+function openCategoryManagerFromEnvelope() {
+    state.envelopeFormDraft = {
+        editId: document.getElementById('envelope-edit-id').value,
+        name: document.getElementById('envelope-name').value,
+        nominal: document.getElementById('envelope-nominal-input').value,
+        icon: document.getElementById('envelope-icon').value,
+        color: document.getElementById('envelope-color').value,
+        categoryId: document.getElementById('envelope-parent-category').value,
+        title: document.getElementById('envelope-modal-title').querySelector('span').innerText
+    };
+    openModal('modal-manage-categories');
 }
 
 window.addEventListener('click', (e) => {
@@ -1570,7 +1626,7 @@ function switchTab(tabId) {
         renderEnvelopesManagement();
     }
 
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 // ==========================================
@@ -1611,7 +1667,7 @@ async function loadDashboard() {
         renderRecentExpenses(json.data.recent_expenses);
         renderChart(json.data.envelopes);
         
-        lucide.createIcons();
+        safeCreateIcons();
     } catch (err) {
         console.error("Gagal memuat dashboard:", err);
     }
@@ -1949,7 +2005,7 @@ function renderEmptyPeriodState() {
             </button>
         </div>
     `;
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 // ==========================================
@@ -1983,12 +2039,15 @@ function renderEnvelopesManagement() {
         return;
     }
 
+    const categories = getCategories();
+
     tbody.innerHTML = envelopes.map(pos => {
         const badgeColorClass = pos.status_warna === 'hijau' 
             ? 'badge-status-hijau' 
             : (pos.status_warna === 'kuning' ? 'badge-status-kuning' : 'badge-status-merah');
         
         const badgeLabel = pos.status_warna === 'hijau' ? 'Aman' : (pos.status_warna === 'kuning' ? 'Waspada' : 'Kritis');
+        const parentCategory = categories.find(c => c.id == pos.kategori_header_id);
 
         return `
             <tr class="hover:bg-slate-50/80 transition-colors">
@@ -1996,7 +2055,10 @@ function renderEnvelopesManagement() {
                     <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs" style="background-color: ${pos.color || '#4F46E5'}">
                         <i data-lucide="${pos.icon || 'wallet'}" class="w-3.5 h-3.5"></i>
                     </div>
-                    <span>${pos.nama_pos}</span>
+                    <div class="flex flex-col">
+                        <span>${pos.nama_pos}</span>
+                        ${parentCategory ? `<span class="text-[10px] font-semibold text-slate-400">${parentCategory.nama}</span>` : ''}
+                    </div>
                 </td>
                 <td class="py-3 px-4 font-bold text-slate-800">${formatRupiah(pos.nominal_alokasi)}</td>
                 <td class="py-3 px-4 text-slate-600">${formatRupiah(pos.total_pengeluaran)}</td>
@@ -2020,7 +2082,7 @@ function renderEnvelopesManagement() {
             </tr>
         `;
     }).join('');
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 function updateEnvelopeAllocPreview() {
@@ -2113,7 +2175,7 @@ function applyExpenseFilters() {
             </td>
         </tr>
     `).join('');
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 // ==========================================
@@ -2144,7 +2206,7 @@ function renderIncomesTable() {
             </td>
         </tr>
     `).join('');
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 // ==========================================
@@ -2198,7 +2260,7 @@ function renderPeriodsHistoryList(periods) {
             </div>
         `;
     }).join('');
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 async function viewPeriodDetail(periodId) {
@@ -2267,7 +2329,7 @@ async function viewPeriodDetail(periodId) {
     }
 
     openModal('modal-period-detail');
-    lucide.createIcons();
+    safeCreateIcons();
 }
 
 async function activateArchivePeriod() {
@@ -2436,6 +2498,139 @@ async function handleExpenseSubmit(e) {
     }
 }
 
+// ==========================================
+// MASTER DATA KATEGORI HEADER (parent category untuk Pos Deposit)
+// ==========================================
+
+function getCategories() {
+    return LocalDB.get(LocalDB.KEYS.CATEGORIES);
+}
+
+// Isi ulang dropdown "Kategori Header" di form Tambah/Edit Pos Deposit
+function populateEnvelopeParentCategoryDropdown(selectedId = null) {
+    const select = document.getElementById('envelope-parent-category');
+    if (!select) return;
+
+    const categories = getCategories();
+
+    if (categories.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>-- Belum ada Kategori, buat dulu --</option>';
+        return;
+    }
+
+    select.innerHTML = '<option value="" disabled ' + (selectedId ? '' : 'selected') + '>-- Pilih Kategori Header --</option>' +
+        categories.map(c => `
+            <option value="${c.id}" ${selectedId != null && selectedId == c.id ? 'selected' : ''}>${c.nama}</option>
+        `).join('');
+}
+
+// Render daftar kategori di modal "Kelola Master Kategori Header"
+function renderMasterCategoriesList() {
+    const listEl = document.getElementById('master-categories-list');
+    if (!listEl) return;
+
+    const categories = getCategories();
+
+    if (categories.length === 0) {
+        listEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">Belum ada kategori header. Tambahkan lewat form di atas.</div>';
+        return;
+    }
+
+    listEl.innerHTML = categories.map(c => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200">
+            <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white" style="background-color: ${c.color || '#4F46E5'}">
+                    <i data-lucide="${c.icon || 'folder-kanban'}" class="w-3.5 h-3.5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800">${c.nama}</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <button type="button" onclick="editMasterCategory(${c.id})" title="Edit Kategori" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </button>
+                <button type="button" onclick="deleteMasterCategory(${c.id})" title="Hapus Kategori" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    safeCreateIcons();
+}
+
+function resetMasterCategoryForm() {
+    document.getElementById('master-category-edit-id').value = '';
+    document.getElementById('master-cat-name').value = '';
+    document.getElementById('master-cat-icon').value = 'folder-kanban';
+    document.getElementById('master-cat-color').value = '#4F46E5';
+    document.getElementById('form-master-cat-title').innerText = 'Tambah Kategori Header Baru:';
+    document.getElementById('btn-save-master-cat').innerHTML = '+ Simpan Kategori';
+    document.getElementById('btn-cancel-edit-master-cat').classList.add('hidden');
+}
+
+function editMasterCategory(catId) {
+    const categories = getCategories();
+    const cat = categories.find(c => c.id == catId);
+    if (!cat) return;
+
+    document.getElementById('master-category-edit-id').value = cat.id;
+    document.getElementById('master-cat-name').value = cat.nama;
+    document.getElementById('master-cat-icon').value = cat.icon || 'folder-kanban';
+    document.getElementById('master-cat-color').value = cat.color || '#4F46E5';
+    document.getElementById('form-master-cat-title').innerText = 'Edit Kategori Header:';
+    document.getElementById('btn-save-master-cat').innerHTML = 'Update Kategori';
+    document.getElementById('btn-cancel-edit-master-cat').classList.remove('hidden');
+}
+
+function deleteMasterCategory(catId) {
+    const inUse = state.envelopes && state.envelopes.some(e => e.kategori_header_id == catId);
+    if (inUse) {
+        showToast("Kategori ini masih dipakai oleh Pos Deposit, tidak bisa dihapus", "error");
+        return;
+    }
+    if (!confirm("Hapus kategori header ini?")) return;
+
+    const categories = getCategories().filter(c => c.id != catId);
+    LocalDB.set(LocalDB.KEYS.CATEGORIES, categories);
+    showToast("Kategori berhasil dihapus");
+    renderMasterCategoriesList();
+    populateEnvelopeParentCategoryDropdown();
+}
+
+function handleMasterCategorySubmit(e) {
+    e.preventDefault();
+
+    const editId = document.getElementById('master-category-edit-id').value;
+    const nama = document.getElementById('master-cat-name').value.trim();
+    const icon = document.getElementById('master-cat-icon').value;
+    const color = document.getElementById('master-cat-color').value;
+
+    if (!nama) {
+        showToast("Nama kategori wajib diisi", "error");
+        return;
+    }
+
+    const categories = getCategories();
+
+    if (editId) {
+        const idx = categories.findIndex(c => c.id == editId);
+        if (idx !== -1) {
+            categories[idx] = { ...categories[idx], nama, icon, color };
+        }
+        LocalDB.set(LocalDB.KEYS.CATEGORIES, categories);
+        showToast("Kategori berhasil diperbarui!");
+    } else {
+        const newId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
+        categories.push({ id: newId, nama, icon, color });
+        LocalDB.set(LocalDB.KEYS.CATEGORIES, categories);
+        showToast("Kategori berhasil ditambahkan!");
+    }
+
+    resetMasterCategoryForm();
+    renderMasterCategoriesList();
+    populateEnvelopeParentCategoryDropdown();
+}
+
 // 2. Envelope Submit Handler
 async function handleEnvelopeSubmit(e) {
     e.preventDefault();
@@ -2445,6 +2640,12 @@ async function handleEnvelopeSubmit(e) {
     const nominalAlokasi = parseRupiah(document.getElementById('envelope-nominal-input').value);
     const icon = document.getElementById('envelope-icon').value;
     const color = document.getElementById('envelope-color').value;
+    const kategoriHeaderId = document.getElementById('envelope-parent-category').value;
+
+    if (!kategoriHeaderId) {
+        showToast("Kategori Header wajib dipilih", "error");
+        return;
+    }
 
     if (!state.activePeriodId) {
         showToast("Tidak ada periode aktif", "error");
@@ -2468,11 +2669,11 @@ async function handleEnvelopeSubmit(e) {
         if (editId) {
             const idx = envelopes.findIndex(x => x.id == editId);
             if (idx !== -1) {
-                envelopes[idx] = { ...envelopes[idx], nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color };
+                envelopes[idx] = { ...envelopes[idx], nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color, kategori_header_id: parseInt(kategoriHeaderId) };
             }
         } else {
             const newId = envelopes.length > 0 ? Math.max(...envelopes.map(x => x.id)) + 1 : 1;
-            envelopes.push({ id: newId, periode_id: state.activePeriodId, nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color });
+            envelopes.push({ id: newId, periode_id: state.activePeriodId, nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color, kategori_header_id: parseInt(kategoriHeaderId) });
         }
 
         LocalDB.set(LocalDB.KEYS.ENVELOPES, envelopes);
@@ -2487,8 +2688,8 @@ async function handleEnvelopeSubmit(e) {
         const method = editId ? 'PUT' : 'POST';
         const url = editId ? `/api/envelopes/${editId}` : '/api/envelopes';
         const payload = editId 
-            ? { nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color }
-            : { periode_id: state.activePeriodId, nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color };
+            ? { nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color, kategori_header_id: parseInt(kategoriHeaderId) }
+            : { periode_id: state.activePeriodId, nama_pos: namaPos, nominal_alokasi: nominalAlokasi, icon: icon, color: color, kategori_header_id: parseInt(kategoriHeaderId) };
 
         const res = await fetch(url, {
             method: method,
@@ -2513,14 +2714,15 @@ function editEnvelope(posId) {
     const pos = state.envelopes.find(e => e.id == posId);
     if (!pos) return;
 
+    openModal('modal-add-envelope');
+
     document.getElementById('envelope-edit-id').value = pos.id;
     document.getElementById('envelope-name').value = pos.nama_pos;
     document.getElementById('envelope-nominal-input').value = pos.nominal_alokasi.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     document.getElementById('envelope-icon').value = pos.icon || 'wallet';
     document.getElementById('envelope-color').value = pos.color || '#3B82F6';
     document.getElementById('envelope-modal-title').querySelector('span').innerText = 'Edit Pos Deposit';
-
-    openModal('modal-add-envelope');
+    populateEnvelopeParentCategoryDropdown(pos.kategori_header_id);
     checkEnvelopeAllocationLimit();
 }
 
