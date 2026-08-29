@@ -1830,73 +1830,119 @@ function renderEnvelopesCards(envelopes) {
         return;
     }
 
-    container.innerHTML = envelopes.map(pos => {
-        const badgeColorClass = pos.status_warna === 'hijau' 
-            ? 'badge-status-hijau' 
-            : (pos.status_warna === 'kuning' ? 'badge-status-kuning' : 'badge-status-merah');
-        
-        const badgeLabel = pos.status_warna === 'hijau'
-            ? 'Aman'
-            : (pos.status_warna === 'kuning' ? 'Waspada' : (pos.sisa_saldo <= 0 ? 'Habis' : 'Kritis'));
+    // Kelompokkan pos deposit berdasarkan Kategori Header (Master Data)
+    const categories = getCategories();
+    const groupsMap = new Map();
 
-        const barColor = pos.status_warna === 'hijau' 
-            ? 'bg-emerald-500' 
-            : (pos.status_warna === 'kuning' ? 'bg-amber-500' : 'bg-rose-500');
+    envelopes.forEach(pos => {
+        const key = (pos.kategori_header_id !== undefined && pos.kategori_header_id !== null && pos.kategori_header_id !== '')
+            ? pos.kategori_header_id
+            : 'none';
+        if (!groupsMap.has(key)) {
+            const cat = key !== 'none' ? categories.find(c => c.id == key) : null;
+            groupsMap.set(key, { category: cat, items: [] });
+        }
+        groupsMap.get(key).items.push(pos);
+    });
 
-        return `
-            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card shadow-card-hover flex flex-col justify-between">
-                <div>
-                    <div class="flex items-start justify-between gap-2 mb-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm" style="background-color: ${pos.color || '#4F46E5'}">
-                                <i data-lucide="${pos.icon || 'wallet'}" class="w-5 h-5"></i>
+    // Urutan grup mengikuti urutan Master Kategori, lalu pos tanpa kategori di paling akhir
+    const orderedKeys = [];
+    categories.forEach(c => { if (groupsMap.has(c.id)) orderedKeys.push(c.id); });
+    groupsMap.forEach((v, k) => { if (!orderedKeys.includes(k) && k !== 'none') orderedKeys.push(k); });
+    if (groupsMap.has('none')) orderedKeys.push('none');
+
+    container.innerHTML = orderedKeys.map(key => {
+        const group = groupsMap.get(key);
+        const cat = group.category;
+        const groupTitle = cat ? cat.nama : 'Tanpa Kategori Header';
+        const groupIcon = cat ? (cat.icon || 'folder-kanban') : 'help-circle';
+        const groupColor = cat ? (cat.color || '#4F46E5') : '#94A3B8';
+        const groupTotalAlokasi = group.items.reduce((s, e) => s + e.nominal_alokasi, 0);
+
+        const cardsHtml = group.items.map(pos => {
+            const badgeColorClass = pos.status_warna === 'hijau' 
+                ? 'badge-status-hijau' 
+                : (pos.status_warna === 'kuning' ? 'badge-status-kuning' : 'badge-status-merah');
+            
+            const badgeLabel = pos.status_warna === 'hijau'
+                ? 'Aman'
+                : (pos.status_warna === 'kuning' ? 'Waspada' : (pos.sisa_saldo <= 0 ? 'Habis' : 'Kritis'));
+
+            const barColor = pos.status_warna === 'hijau' 
+                ? 'bg-emerald-500' 
+                : (pos.status_warna === 'kuning' ? 'bg-amber-500' : 'bg-rose-500');
+
+            return `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card shadow-card-hover flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between gap-2 mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm" style="background-color: ${pos.color || '#4F46E5'}">
+                                    <i data-lucide="${pos.icon || 'wallet'}" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-extrabold text-slate-900 text-sm leading-tight">${pos.nama_pos}</h4>
+                                    <span class="text-[11px] text-slate-400">Alokasi: ${formatRupiah(pos.nominal_alokasi)}</span>
+                                </div>
                             </div>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="editEnvelope(${pos.id})" title="Edit / Ubah Nama Pos" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="confirmDeleteEnvelope(${pos.id})" title="Hapus Pos" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badgeColorClass} uppercase tracking-wider">
+                                    ${badgeLabel}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="my-3">
+                            <div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-1">
+                                <span>Terpakai: ${pos.persentase_terpakai}%</span>
+                                <span>Sisa: ${pos.persentase_sisa}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                                <div class="progress-bar-fill h-full rounded-full ${barColor}" style="width: ${Math.min(pos.persentase_terpakai, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                             <div>
-                                <h4 class="font-extrabold text-slate-900 text-sm leading-tight">${pos.nama_pos}</h4>
-                                <span class="text-[11px] text-slate-400">Alokasi: ${formatRupiah(pos.nominal_alokasi)}</span>
+                                <div class="text-[10px] text-slate-400 uppercase font-semibold">Terpakai</div>
+                                <div class="font-bold text-slate-700">${formatRupiah(pos.total_pengeluaran)}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-slate-400 uppercase font-semibold">Sisa Saldo</div>
+                                <div class="font-extrabold ${pos.status_warna === 'merah' ? 'text-rose-600' : 'text-slate-900'}">${formatRupiah(pos.sisa_saldo)}</div>
                             </div>
                         </div>
-                        <div class="flex items-center space-x-1">
-                            <button onclick="editEnvelope(${pos.id})" title="Edit / Ubah Nama Pos" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
-                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button onclick="confirmDeleteEnvelope(${pos.id})" title="Hapus Pos" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badgeColorClass} uppercase tracking-wider">
-                                ${badgeLabel}
-                            </span>
-                        </div>
                     </div>
 
-                    <div class="my-3">
-                        <div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-1">
-                            <span>Terpakai: ${pos.persentase_terpakai}%</span>
-                            <span>Sisa: ${pos.persentase_sisa}%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
-                            <div class="progress-bar-fill h-full rounded-full ${barColor}" style="width: ${Math.min(pos.persentase_terpakai, 100)}%"></div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
-                        <div>
-                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Terpakai</div>
-                            <div class="font-bold text-slate-700">${formatRupiah(pos.total_pengeluaran)}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Sisa Saldo</div>
-                            <div class="font-extrabold ${pos.status_warna === 'merah' ? 'text-rose-600' : 'text-slate-900'}">${formatRupiah(pos.sisa_saldo)}</div>
-                        </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-400">${pos.jumlah_transaksi} Transaksi</span>
+                        <button onclick="quickExpenseForPos(${pos.id})" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Pakai Saldo</span>
+                        </button>
                     </div>
                 </div>
+            `;
+        }).join('');
 
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span class="text-[11px] text-slate-400">${pos.jumlah_transaksi} Transaksi</span>
-                    <button onclick="quickExpenseForPos(${pos.id})" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                        <span>Pakai Saldo</span>
-                    </button>
+        return `
+            <div class="col-span-full">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0" style="background-color: ${groupColor}">
+                        <i data-lucide="${groupIcon}" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <h4 class="text-sm font-extrabold text-slate-700 tracking-tight">${groupTitle}</h4>
+                    <span class="text-[11px] text-slate-400 font-semibold">${group.items.length} pos &bull; ${formatRupiah(groupTotalAlokasi)}</span>
+                    <div class="flex-1 border-t border-slate-200"></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 last:mb-0">
+                    ${cardsHtml}
                 </div>
             </div>
         `;
